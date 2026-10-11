@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package post;
+
+option go_package = "hoshiBmaTchi/back-end/proto";
+
+service PostService {
+    rpc GetPostByID(GetPostByIDRequest) returns (GetPostByIDResponse);
+    rpc GetUserPostsCount(GetUserPostsCountRequest) returns (GetUserPostsCountResponse);
+    rpc DeleteUserPosts(DeleteUserPostsRequest) returns (DeleteUserPostsResponse);
+}
+
+message PostMedia {
+    string id = 1;
+    string post_id = 2;
+    string file_path = 3;
+    string media_type = 4;
+    int32 order_num = 5;
+    int32 duration = 6;
+    int32 width = 7;
+    int32 height = 8;
+    string created_at = 9;
+    string updated_at = 10;
+}
+
+message PostCollaborator {
+    string id = 1;
+    string post_id = 2;
+    string user_id = 3;
+    string created_at = 4;
+    string updated_at = 5;
+}
+
+message Post {
+    string id = 1;
+    string user_id = 2;
+    string caption = 3;
+    bool is_comment_off = 4;
+    bool is_hide_likes = 5;
+    int32 likes_count = 6;
+    int32 comments_count = 7;
+    repeated PostMedia media = 8;
+    repeated PostCollaborator collaborators = 9;
+    string created_at = 10;
+    string updated_at = 11;
+}
+
+message CreatePostMediaRequest {
+    string id = 1;
+    string post_id = 2;
+    string file_path = 3;
+    string media_type = 4;
+    int32 order_num = 5;
+    int32 duration = 6;
+    int32 width = 7;
+    int32 height = 8;
+    string created_at = 9;
+    string updated_at = 10;
+}
+
+message CreatePostCollaboratorRequest {
+    string id = 1;
+    string post_id = 2;
+    string user_id = 3;
+    string created_at = 4;
+    string updated_at = 5;
+}
+
+message CreatePostRequest {
+    string id = 1;
+    string user_id = 2;
+    string caption = 3;
+    bool is_comment_off = 4;
+    bool is_hide_likes = 5;
+    int32 likes_count = 6;
+    int32 comments_count = 7;
+    repeated PostMedia media = 8;
+    repeated PostCollaborator collaborators = 9;
+    string created_at = 10;
+    string updated_at = 11;
+}
+
+
+message GetPostByIDRequest {
+    string post_id = 1;
+}
+
+message GetPostByIDResponse {
+    Post post = 1;
+    string error = 2;
+}
+
+
+message GetUserPostsCountRequest {
+    string user_id = 1;
+}
+
+message GetUserPostsCountResponse {
+    int32 count = 1;
+    string error = 2;
+}
+
+
+message DeleteUserPostsRequest {
+    string user_id = 1;
+}
+
+message DeleteUserPostsResponse {
+    bool success = 1;
+    int32 deleted_count = 2;
+    string error = 3;
+}

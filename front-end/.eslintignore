@@ -1,0 +1,7 @@
+dist
+node_modules
+*.config.js
+*.config.ts
+env.d.ts
+coverage
+public

@@ -1,0 +1,238 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "HoshiBmaTchi API",
+    "description": "Social Media Platform API Documentation",
+    "version": "1.0",
+    "contact": {
+      "name": "API Support"
+    }
+  },
+  "host": "localhost",
+  "basePath": "/api/v1",
+  "schemes": ["https", "http"],
+  "securityDefinitions": {
+    "Bearer": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "Enter your bearer token in the format: Bearer {token}"
+    }
+  },
+  "paths": {
+    "/users/register": {
+      "post": {
+        "tags": ["Users"],
+        "summary": "Register new user",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "username": {"type": "string"},
+                "email": {"type": "string"},
+                "password": {"type": "string"},
+                "full_name": {"type": "string"}
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {"description": "User registered successfully"},
+          "400": {"description": "Invalid input"}
+        }
+      }
+    },
+    "/users/login": {
+      "post": {
+        "tags": ["Users"],
+        "summary": "User login",
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "username": {"type": "string"},
+                "password": {"type": "string"}
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {"description": "Login successful"},
+          "401": {"description": "Unauthorized"}
+        }
+      }
+    },
+    "/users/search": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Search users",
+        "security": [{"Bearer": []}],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "type": "string",
+            "description": "Search query"
+          }
+        ],
+        "responses": {
+          "200": {"description": "Search results"}
+        }
+      }
+    },
+    "/stories/create": {
+      "post": {
+        "tags": ["Stories"],
+        "summary": "Create new story",
+        "security": [{"Bearer": []}],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "media_url": {"type": "string"},
+                "media_type": {"type": "string"},
+                "duration": {"type": "integer"}
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {"description": "Story created"},
+          "401": {"description": "Unauthorized"}
+        }
+      }
+    },
+    "/stories/get-all-stories": {
+      "get": {
+        "tags": ["Stories"],
+        "summary": "Get all active stories",
+        "security": [{"Bearer": []}],
+        "responses": {
+          "200": {"description": "Stories retrieved"}
+        }
+      }
+    },
+    "/stories/archived": {
+      "get": {
+        "tags": ["Stories"],
+        "summary": "Get archived stories",
+        "security": [{"Bearer": []}],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "type": "integer",
+            "default": 20
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "type": "integer",
+            "default": 0
+          }
+        ],
+        "responses": {
+          "200": {"description": "Archived stories retrieved"}
+        }
+      }
+    },
+    "/stories/hidden-users": {
+      "get": {
+        "tags": ["Stories"],
+        "summary": "Get hidden users list",
+        "security": [{"Bearer": []}],
+        "responses": {
+          "200": {"description": "Hidden users list"}
+        }
+      }
+    },
+    "/stories/hidden-users/{userId}": {
+      "post": {
+        "tags": ["Stories"],
+        "summary": "Hide user from seeing stories",
+        "security": [{"Bearer": []}],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {"description": "User hidden successfully"}
+        }
+      },
+      "delete": {
+        "tags": ["Stories"],
+        "summary": "Unhide user",
+        "security": [{"Bearer": []}],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {"description": "User unhidden successfully"}
+        }
+      }
+    },
+    "/posts/create": {
+      "post": {
+        "tags": ["Posts"],
+        "summary": "Create new post",
+        "security": [{"Bearer": []}],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": true,
+            "schema": {
+              "type": "object",
+              "properties": {
+                "caption": {"type": "string"},
+                "media_urls": {"type": "array", "items": {"type": "string"}}
+              }
+            }
+          }
+        ],
+        "responses": {
+          "201": {"description": "Post created"}
+        }
+      }
+    },
+    "/messages/conversation/{conversationId}": {
+      "get": {
+        "tags": ["Messages"],
+        "summary": "Get conversation messages",
+        "security": [{"Bearer": []}],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "conversationId",
+            "type": "string",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {"description": "Messages retrieved"}
+        }
+      }
+    }
+  }
+}

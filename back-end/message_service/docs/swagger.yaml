@@ -1,0 +1,9 @@
+basePath: /api/v1
+host: localhost:8080
+info:
+  contact: {}
+  description: Message Service to handle conversations and messaging
+  title: Message Service API
+  version: "1.0"
+paths: {}
+swagger: "2.0"

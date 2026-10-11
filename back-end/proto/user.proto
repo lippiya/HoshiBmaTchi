@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package user;
+
+
+option go_package = "hoshiBmaTchi/back-end/proto";
+
+service UserService {
+  rpc Register(SignUpUserRequest) returns (SignUpUserResponse);
+  rpc Login(LoginUserRequest) returns (LoginUserResponse);
+}
+
+message SignUpUserRequest {
+  string name = 1;
+  string username = 2;
+  string email = 3;
+  string password = 4;
+  string confpassword = 5;
+  string gender = 6;
+  string profile_picture_url = 7;
+  string dob = 8;
+}
+
+message SignUpUserResponse {
+  string user_id = 1;
+  string message = 2;
+}
+
+message LoginUserRequest {
+  string username_or_email = 1;
+  string password = 2;
+}
+
+message LoginUserResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  bool requires_2fa = 3;
+  string user_id = 4;
+}
+

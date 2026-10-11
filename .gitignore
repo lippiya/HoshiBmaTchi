@@ -1,0 +1,5 @@
+.env
+.claude
+start_claude.bat
+generate-cert.ps1
+certs

@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package photo;
+
+option go_package = "hoshiBmaTchi/back-end/proto";
+
+service PhotoService {
+  rpc UploadPhoto(UploadPhotoRequest) returns (UploadPhotoResponse);
+  rpc DeletePhoto(DeletePhotoRequest) returns (DeletePhotoResponse);
+  rpc GetPhotoURL(GetPhotoURLRequest) returns (GetPhotoURLResponse);
+}
+
+message UploadPhotoRequest {
+  bytes file_data = 1;
+  string file_name = 2;
+  string content_type = 3;
+  string user_id = 4; 
+}
+
+message UploadPhotoResponse {
+  string url = 1;
+  string file_path = 2;
+  string error = 3;
+}
+
+message DeletePhotoRequest {
+  string file_path = 1;
+}
+
+message DeletePhotoResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message GetPhotoURLRequest {
+  string file_path = 1;
+}
+
+message GetPhotoURLResponse {
+  string url = 1;
+  string error = 2;
+}

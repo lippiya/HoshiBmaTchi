@@ -1,0 +1,209 @@
+basePath: /api/v1
+definitions:
+  gorm_user.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      turnstile_token:
+        type: string
+    type: object
+  gorm_user.ResetPasswordRequest:
+    properties:
+      conf_password:
+        type: string
+      new_password:
+        type: string
+      user:
+        type: string
+    type: object
+  http.VerifyOTPRequest:
+    properties:
+      code:
+        type: string
+      email:
+        type: string
+      user_id:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: User Service to handle user registration, authentication, and profile
+    management
+  title: User Service API
+  version: "1.0"
+paths:
+  /users/get-current-user:
+    get:
+      consumes:
+      - application/json
+      description: Get currently authenticated user profile
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User profile
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Current User
+      tags:
+      - users
+  /users/get-user-by-id/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve user information by user ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User data
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: User not found
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get User by ID
+      tags:
+      - users
+  /users/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with email and password
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/gorm_user.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      summary: User Login
+      tags:
+      - users
+  /users/photo:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a photo by its path
+      parameters:
+      - description: Photo path
+        in: query
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Photo URL
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get Photo
+      tags:
+      - users
+  /users/reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Request password reset for a user
+      parameters:
+      - description: Reset password request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/gorm_user.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Password reset initiated
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Reset Password
+      tags:
+      - users
+  /users/verify-otp:
+    post:
+      consumes:
+      - application/json
+      description: Verify OTP code for user registration
+      parameters:
+      - description: OTP verification
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/http.VerifyOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Registration successful
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid OTP
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Verify OTP
+      tags:
+      - users
+swagger: "2.0"

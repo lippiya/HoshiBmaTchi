@@ -1,0 +1,481 @@
+version: "3.8"
+
+services:
+  postgres-user:
+    image: postgres:latest
+    container_name: hoshibmatchi-user-db
+    environment:
+      POSTGRES_USER: ${USER_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${USER_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${USER_POSTGRES_DB}
+    volumes:
+      - postgres-user-data:/var/lib/postgresql
+    networks:
+      - hoshibmatchi_internal
+    restart: unless-stopped
+
+  postgres-post:
+    image: postgres:latest
+    container_name: hoshibmatchi-post-db
+    environment:
+      POSTGRES_USER: ${POST_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POST_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POST_POSTGRES_DB}
+    volumes:
+      - postgres-post-data:/var/lib/postgresql
+    networks:
+      - hoshibmatchi_internal
+    restart: unless-stopped
+
+  postgres-social:
+    image: postgres:latest
+    container_name: hoshibmatchi-social-db
+    environment:
+      POSTGRES_USER: ${SOCIAL_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${SOCIAL_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${SOCIAL_POSTGRES_DB}
+    volumes:
+      - postgres-social-data:/var/lib/postgresql
+    networks:
+      - hoshibmatchi_internal
+    restart: unless-stopped
+
+  postgres-message:
+    image: postgres:latest
+    container_name: hoshibmatchi-message-db
+    environment:
+      POSTGRES_USER: ${MESSAGE_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${MESSAGE_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${MESSAGE_POSTGRES_DB}
+    volumes:
+      - postgres-message-data:/var/lib/postgresql
+    networks:
+      - hoshibmatchi_internal
+    restart: unless-stopped
+
+  postgres-story:
+    image: postgres:latest
+    container_name: hoshibmatchi-story-db
+    environment:
+      POSTGRES_USER: ${STORY_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${STORY_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${STORY_POSTGRES_DB}
+    volumes:
+      - postgres-story-data:/var/lib/postgresql
+    networks:
+      - hoshibmatchi_internal
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: hoshibmatchi-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    ports:
+      - "5050:80"
+    networks:
+      - hoshibmatchi_internal
+      - traefik_public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hoshibmatchi_traefik_public"
+      - "traefik.http.routers.pgadmin-secure.rule=Host(`pgadmin.localhost`)"
+      - "traefik.http.routers.pgadmin-secure.entrypoints=websecure"
+      - "traefik.http.routers.pgadmin-secure.tls=true"
+      - "traefik.http.routers.pgadmin.rule=Host(`pgadmin.localhost`)"
+      - "traefik.http.routers.pgadmin.entrypoints=web"
+      - "traefik.http.services.pgadmin.loadbalancer.server.port=80"
+    depends_on:
+      - postgres-user
+      - postgres-post
+      - postgres-social
+      - postgres-message
+      - postgres-story
+    restart: unless-stopped
+  
+  traefik:
+    image: traefik:latest
+    container_name: hoshibmatchi-traefik
+    command:
+      - "--accesslog=true"
+      - "--api.insecure=true"
+      - "--api.dashboard=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--log.level=INFO"
+    ports:
+      - "80:80" 
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./back-end/certs:/etc/traefik/certs:ro
+      - ./traefik:/etc/traefik/dynamic:ro
+      - traefik-letsencrypt:/letsencrypt
+    networks:
+      - traefik_public
+      - hoshibmatchi_internal
+    restart: unless-stopped
+
+  redis:
+    image: redis:latest
+    container_name: hoshibmatchi-redis
+    volumes:
+      - redis-data:/data
+    networks:
+      - hoshibmatchi_internal 
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: hoshibmatchi-minio
+    command: server /data --console-address ":9001" --certs-dir /root/.minio/certs
+    environment:
+      MINIO_ROOT_USER: ${MINIO_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
+      MINIO_BROWSER: ${MINIO_BROWSER}
+      MINIO_SERVER_URL: ${MINIO_SERVER_URL}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_BROWSER_REDIRECT_URL}
+      MINIO_API_CORS_ALLOW_ORIGIN: ${MINIO_API_CORS_ALLOW_ORIGIN}
+      MINIO_PROMETHEUS_AUTH_TYPE: ${MINIO_PROMETHEUS_AUTH_TYPE}
+      MINIO_KMS_AUTO_ENCRYPTION: ${MINIO_KMS_AUTO_ENCRYPTION}
+    volumes:
+      - minio-data:/data
+      - ./back-end/certs:/root/.minio/certs:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio.rule=Host(`minio.localhost`)"
+      - "traefik.http.routers.minio.entrypoints=websecure"
+      - "traefik.http.routers.minio.tls=true"
+      - "traefik.http.services.minio.loadbalancer.server.port=9000"
+    expose:
+      - "9000"
+      - "9001"
+    networks:
+      - traefik_public
+      - hoshibmatchi_internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:latest
+    container_name: hoshibmatchi-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER} 
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    networks:
+      - hoshibmatchi_internal
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    restart: unless-stopped
+
+  photo-service:
+    build:
+      context: ./back-end
+      dockerfile: photo_service/Dockerfile.dev
+    container_name: hoshibmatchi-photo-service
+    environment:
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_USER:-admin}
+      MINIO_SECRET_KEY: ${MINIO_PASSWORD:-lalalala}
+      MINIO_BUCKET: ${MINIO_BUCKET:-photos}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT:-minio:9000}
+      GRPC_PORT: "50053"
+      HTTP_PORT: "8086"
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
+    volumes:
+      - ./back-end:/app
+      - /app/tmp
+    networks:
+      - hoshibmatchi_internal
+      - traefik_public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hoshibmatchi_traefik_public"
+      - "traefik.http.routers.photo-service-secure.rule=PathPrefix(`/api/v1/photos`)"
+      - "traefik.http.routers.photo-service-secure.entrypoints=websecure"
+      - "traefik.http.routers.photo-service-secure.tls=true"
+      - "traefik.http.routers.photo-service.rule=PathPrefix(`/api/v1/photos`)"
+      - "traefik.http.routers.photo-service.entrypoints=web"
+      - "traefik.http.services.photo-service.loadbalancer.server.port=8086"
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+  email-service:
+    build:
+      context: ./back-end
+      dockerfile: email_service/Dockerfile.dev
+    container_name: hoshibmatchi-email-service
+    environment:
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+    volumes:
+      - ./back-end:/app
+      - /app/tmp
+    networks:
+      - hoshibmatchi_internal
+    labels:
+      - "traefik.http.services.email-service.loadbalancer.server.port=50051"
+    depends_on:
+      - rabbitmq
+    restart: unless-stopped
+
+  social-service:
+    build:
+      context: ./back-end
+      dockerfile: social_service/Dockerfile.dev
+    container_name: hoshibmatchi-social-service
+    environment:
+      SOCIAL_POSTGRES_HOST: ${SOCIAL_POSTGRES_HOST}
+      SOCIAL_POSTGRES_USER: ${SOCIAL_POSTGRES_USER}
+      SOCIAL_POSTGRES_PASSWORD: ${SOCIAL_POSTGRES_PASSWORD}
+      SOCIAL_POSTGRES_DB: ${SOCIAL_POSTGRES_DB}
+      SOCIAL_POSTGRES_PORT: ${SOCIAL_POSTGRES_PORT}
+    volumes:
+      - ./back-end:/app
+      - /app/tmp
+    networks:
+      - hoshibmatchi_internal
+      - traefik_public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hoshibmatchi_traefik_public"
+      - "traefik.http.routers.social-service-secure.rule=PathPrefix(`/api/v1/social`) || Path(`/api/v1/social/create-comment`) || PathPrefix(`/swagger`)"
+      - "traefik.http.routers.social-service-secure.entrypoints=websecure"
+      - "traefik.http.routers.social-service-secure.tls=true"
+      - "traefik.http.routers.social-service-secure.priority=10"
+      - "traefik.http.routers.social-service.rule=PathPrefix(`/api/v1/social`) || Path(`/api/v1/social/create-comment`) || PathPrefix(`/swagger`)"
+      - "traefik.http.routers.social-service.entrypoints=web"
+      - "traefik.http.routers.social-service.priority=10"
+      - "traefik.http.services.social-service.loadbalancer.server.port=8085"
+      - "traefik.http.services.social-service.loadbalancer.passHostHeader=true"
+    depends_on:
+      - postgres-social
+    restart: unless-stopped
+
+  user-service:
+    build: 
+      context: ./back-end
+      dockerfile: user_service/Dockerfile.dev
+    container_name: hoshibmatchi-user-service
+    environment:
+      USER_POSTGRES_HOST: ${USER_POSTGRES_HOST}
+      USER_POSTGRES_USER: ${USER_POSTGRES_USER}
+      USER_POSTGRES_PASSWORD: ${USER_POSTGRES_PASSWORD}
+      USER_POSTGRES_DB: ${USER_POSTGRES_DB}
+      USER_POSTGRES_PORT: ${USER_POSTGRES_PORT}
+      TURNSTILE_API_SECRET: ${TURNSTILE_API_SECRET}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      EMAIL_SERVICE_GRPC_ADDR: ${EMAIL_SERVICE_GRPC_ADDR:-email-service:50051}
+      PHOTO_SERVICE_GRPC_ADDR: ${PHOTO_SERVICE_GRPC_ADDR:-photo-service:50053}
+      SOCIAL_SERVICE_GRPC_ADDR: ${SOCIAL_SERVICE_GRPC_ADDR:-social-service:50052}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URL: ${GOOGLE_REDIRECT_URL}
+    volumes:
+      - ./back-end:/app
+      - /app/tmp
+    networks:
+      - hoshibmatchi_internal
+      - traefik_public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hoshibmatchi_traefik_public"
+      - "traefik.http.routers.user-service-secure.rule=PathPrefix(`/api/v1/users`) || PathPrefix(`/swagger`)"
+      - "traefik.http.routers.user-service-secure.entrypoints=websecure"
+      - "traefik.http.routers.user-service-secure.tls=true"
+      - "traefik.http.routers.user-service.rule=PathPrefix(`/api/v1/users`) || PathPrefix(`/swagger`)"
+      - "traefik.http.routers.user-service.entrypoints=web"
+      - "traefik.http.services.user-service.loadbalancer.server.port=8080"
+    depends_on:
+      - postgres-user
+      - traefik
+      - social-service
+    restart: unless-stopped
+
+  post-service:
+    build: 
+      context: ./back-end
+      dockerfile: post_service/Dockerfile.dev
+    container_name: hoshibmatchi-post-service
+    environment:
+      POST_POSTGRES_HOST: ${POST_POSTGRES_HOST}
+      POST_POSTGRES_USER: ${POST_POSTGRES_USER}
+      POST_POSTGRES_PASSWORD: ${POST_POSTGRES_PASSWORD}
+      POST_POSTGRES_DB: ${POST_POSTGRES_DB}
+      POST_POSTGRES_PORT: ${POST_POSTGRES_PORT}
+      PHOTO_SERVICE_GRPC_ADDR: ${PHOTO_SERVICE_GRPC_ADDR:-photo-service:50053}
+    volumes:
+      - ./back-end:/app
+      - /app/tmp
+    networks:
+      - hoshibmatchi_internal
+      - traefik_public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hoshibmatchi_traefik_public"
+      - "traefik.http.routers.post-service-secure.rule=PathPrefix(`/api/v1/posts`) || PathPrefix(`/api/v1/collections`) || PathPrefix(`/swagger`)"
+      - "traefik.http.routers.post-service-secure.entrypoints=websecure"
+      - "traefik.http.routers.post-service-secure.tls=true"
+      - "traefik.http.routers.post-service.rule=PathPrefix(`/api/v1/posts`) || PathPrefix(`/api/v1/collections`) || PathPrefix(`/swagger`)"
+      - "traefik.http.routers.post-service.entrypoints=web"
+      - "traefik.http.services.post-service.loadbalancer.server.port=8080"
+    depends_on:
+      - postgres-post
+      - traefik
+    restart: unless-stopped
+
+  message-service:
+    build: 
+      context: ./back-end
+      dockerfile: message_service/Dockerfile.dev
+    container_name: hoshibmatchi-message-service
+    environment:
+      MESSAGE_POSTGRES_HOST: ${MESSAGE_POSTGRES_HOST}
+      MESSAGE_POSTGRES_USER: ${MESSAGE_POSTGRES_USER}
+      MESSAGE_POSTGRES_PASSWORD: ${MESSAGE_POSTGRES_PASSWORD}
+      MESSAGE_POSTGRES_DB: ${MESSAGE_POSTGRES_DB}
+      MESSAGE_POSTGRES_PORT: ${MESSAGE_POSTGRES_PORT}
+      PHOTO_SERVICE_GRPC_ADDR: ${PHOTO_SERVICE_GRPC_ADDR:-photo-service:50053}
+      JWT_SECRET: ${JWT_SECRET}
+    volumes:
+      - ./back-end:/app
+      - /app/tmp
+    networks:
+      - hoshibmatchi_internal
+      - traefik_public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hoshibmatchi_traefik_public"
+      - "traefik.http.routers.message-service-secure.rule=PathPrefix(`/api/v1/messages`)"
+      - "traefik.http.routers.message-service-secure.entrypoints=websecure"
+      - "traefik.http.routers.message-service-secure.tls=true"
+      - "traefik.http.routers.message-service.rule=PathPrefix(`/api/v1/messages`)"
+      - "traefik.http.routers.message-service.entrypoints=web"
+      - "traefik.http.services.message-service.loadbalancer.server.port=8080"
+    depends_on:
+      - postgres-message
+      - traefik
+      - photo-service
+    restart: unless-stopped
+
+  story-service:
+    build: 
+      context: ./back-end
+      dockerfile: story_service/Dockerfile.dev
+    container_name: hoshibmatchi-story-service
+    environment:
+      STORY_POSTGRES_HOST: ${STORY_POSTGRES_HOST}
+      STORY_POSTGRES_USER: ${STORY_POSTGRES_USER}
+      STORY_POSTGRES_PASSWORD: ${STORY_POSTGRES_PASSWORD}
+      STORY_POSTGRES_DB: ${STORY_POSTGRES_DB}
+      STORY_POSTGRES_PORT: ${STORY_POSTGRES_PORT}
+      PHOTO_SERVICE_GRPC_ADDR: ${PHOTO_SERVICE_GRPC_ADDR:-photo-service:50053}
+      JWT_SECRET: ${JWT_SECRET}
+      USER_SERVICE_URL: ${USER_SERVICE_URL:-http://user-service:8080}
+    volumes:
+      - ./back-end:/app
+      - /app/tmp
+    networks:
+      - hoshibmatchi_internal
+      - traefik_public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hoshibmatchi_traefik_public"
+      - "traefik.http.routers.story-service-secure.rule=PathPrefix(`/api/v1/stories`)"
+      - "traefik.http.routers.story-service-secure.entrypoints=websecure"
+      - "traefik.http.routers.story-service-secure.tls=true"
+      - "traefik.http.routers.story-service.rule=PathPrefix(`/api/v1/stories`)"
+      - "traefik.http.routers.story-service.entrypoints=web"
+      - "traefik.http.services.story-service.loadbalancer.server.port=8084"
+    depends_on:
+      - postgres-story
+      - traefik
+      - photo-service
+    restart: unless-stopped
+
+  ai-service:
+    build:
+      context: ./back-end
+      dockerfile: ai_service/Dockerfile
+    container_name: hoshibmatchi-ai-service
+    volumes:
+      - ./back-end/ai_service:/app
+    networks:
+      - hoshibmatchi_internal
+      - traefik_public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hoshibmatchi_traefik_public"
+      - "traefik.http.routers.ai-service-secure.rule=PathPrefix(`/api/v1/ai`)"
+      - "traefik.http.routers.ai-service-secure.entrypoints=websecure"
+      - "traefik.http.routers.ai-service-secure.tls=true"
+      - "traefik.http.routers.ai-service.rule=PathPrefix(`/api/v1/ai`)"
+      - "traefik.http.routers.ai-service.entrypoints=web"
+      - "traefik.http.services.ai-service.loadbalancer.server.port=5000"
+      - "traefik.http.middlewares.ai-strip-prefix.stripprefix.prefixes=/api/v1/ai"
+      - "traefik.http.routers.ai-service.middlewares=ai-strip-prefix"
+      - "traefik.http.routers.ai-service-secure.middlewares=ai-strip-prefix"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./front-end
+      dockerfile: Dockerfile.dev
+    container_name: hoshibmatchi-frontend
+    volumes:
+      - ./front-end:/app
+      - /app/node_modules
+    networks:
+      - traefik_public
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hoshibmatchi_traefik_public"
+      - "traefik.http.routers.frontend-secure.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend-secure.priority=1"
+      - "traefik.http.routers.frontend-secure.entrypoints=websecure"
+      - "traefik.http.routers.frontend-secure.tls=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      - "traefik.http.services.frontend.loadbalancer.server.port=5173"
+    depends_on:
+      - traefik
+    restart: unless-stopped
+
+networks:
+  traefik_public:
+    driver: bridge
+    name: hoshibmatchi_traefik_public
+  hoshibmatchi_internal:
+    driver: bridge
+    name: hoshibmatchi_internal
+
+volumes:
+  postgres-user-data:
+  postgres-post-data:
+  postgres-social-data:
+  postgres-message-data:
+  postgres-story-data:
+  redis-data:
+  minio-data:
+  rabbitmq-data:
+  traefik-letsencrypt:
